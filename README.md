@@ -42,14 +42,14 @@ A modern Windows USN Journal analyzer that tracks file system activity including
 ## 📦 Installation
 
 ### Option 1: Using Pre-built Executable (Recommended)
-1. Download the latest `JournalTrace.exe` from [Releases](https://github.com/ritzysixx/JournalTrace/releases)
+1. Download the latest `JournalTrace.exe` from [Releases](https://github.com/ritzysixx/Journal-Trace/releases)
 2. Run `JournalTrace.exe` directly - no installation required!
 
 ### Option 2: Build from Source
 1. **Clone the repository**
    ```bash
-   git clone https://github.com/ritzysixx/JournalTrace.git
-   cd JournalTrace
+   git clone https://github.com/ritzysixx/Journal-Trace.git
+   cd Journal Trace
    ```
 
 2. **Install Python dependencies**
@@ -59,13 +59,13 @@ A modern Windows USN Journal analyzer that tracks file system activity including
 
 3. **Run the application**
    ```bash
-   python JournalTrace.py
+   python Journal Trace.py
    ```
 
 ### Option 3: Build Executable
 ```bash
 pip install pyinstaller
-python -m PyInstaller --onefile --windowed --hidden-import="webview" --hidden-import="webview.platforms.win32" JournalTrace.py
+python -m PyInstaller --onefile --windowed --hidden-import="webview" --hidden-import="webview.platforms.win32" Journal Trace.py
 ```
 
 ## 🎯 Usage
