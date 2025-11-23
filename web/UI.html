@@ -1,0 +1,1645 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Journal Trace</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="glass-container">
+        <div class="title-bar" id="titleBar">
+            <div class="window-title">Journal Trace - USN Journal Analysis</div>
+            <div class="window-controls">
+                <button class="control-btn minimize-btn" onclick="minimizeWindow()">−</button>
+                <button class="control-btn maximize-btn" onclick="maximizeWindow()">□</button>
+                <button class="control-btn close-btn" onclick="closeWindow()">×</button>
+            </div>
+        </div>
+        
+        <div class="control-panel">
+            <div class="scan-controls">
+                <div class="drive-info">
+                    <span class="drive-label">Available Drives:</span>
+                    <span id="driveList" class="drive-list">Detecting drives...</span>
+                </div>
+                <button id="scanBtn" class="scan-button" onclick="startScan()">
+                    <span class="button-text">Scan All Drives</span>
+                    <span class="button-loading">Scanning...</span>
+                </button>
+                <button id="stopBtn" class="stop-button" onclick="stopScan()" disabled>Stop Scan</button>
+                <button id="clearBtn" class="clear-button" onclick="clearResults()">Clear Results</button>
+                <button id="exportBtn" class="export-button" onclick="exportResults()">Export Results</button>
+            </div>
+            
+            <div class="filter-section">
+                <input type="text" class="search-bar" placeholder="Search files or paths..." id="searchInput" oninput="debouncedFilterEntries()">
+                <div class="toggle-section">
+                    <div class="toggle-container">
+                        <label class="toggle-switch">
+                            <input type="checkbox" id="fileCreateToggle" onchange="filterEntries()">
+                            <span class="slider"></span>
+                        </label>
+                        <span class="toggle-label">File Create</span>
+                    </div>
+                    <div class="toggle-container">
+                        <label class="toggle-switch">
+                            <input type="checkbox" id="fileDeleteToggle" onchange="filterEntries()">
+                            <span class="slider"></span>
+                        </label>
+                        <span class="toggle-label">File Delete</span>
+                    </div>
+                    <div class="toggle-container">
+                        <label class="toggle-switch">
+                            <input type="checkbox" id="renameToggle" onchange="filterEntries()">
+                            <span class="slider"></span>
+                        </label>
+                        <span class="toggle-label">Rename</span>
+                    </div>
+                    <div class="toggle-container">
+                        <label class="toggle-switch">
+                            <input type="checkbox" id="dataExtendToggle" onchange="filterEntries()">
+                            <span class="slider"></span>
+                        </label>
+                        <span class="toggle-label">Data Extend</span>
+                    </div>
+                    <div class="toggle-container">
+                        <label class="toggle-switch">
+                            <input type="checkbox" id="dataOverwriteToggle" onchange="filterEntries()">
+                            <span class="slider"></span>
+                        </label>
+                        <span class="toggle-label">Data Overwrite</span>
+                    </div>
+                    <div class="toggle-container">
+                        <label class="toggle-switch">
+                            <input type="checkbox" id="dataTruncationToggle" onchange="filterEntries()">
+                            <span class="slider"></span>
+                        </label>
+                        <span class="toggle-label">Data Truncation</span>
+                    </div>
+                    <div class="toggle-container">
+                        <label class="toggle-switch">
+                            <input type="checkbox" id="securityChangeToggle" onchange="filterEntries()">
+                            <span class="slider"></span>
+                        </label>
+                        <span class="toggle-label">Security Change</span>
+                    </div>
+                    <div class="toggle-container">
+                        <label class="toggle-switch">
+                            <input type="checkbox" id="basicInfoChangeToggle" onchange="filterEntries()">
+                            <span class="slider"></span>
+                        </label>
+                        <span class="toggle-label">Basic Info Change</span>
+                    </div>
+                    <div class="toggle-container">
+                        <label class="toggle-switch">
+                            <input type="checkbox" id="streamChangeToggle" onchange="filterEntries()">
+                            <span class="slider"></span>
+                        </label>
+                        <span class="toggle-label">Stream Change</span>
+                    </div>
+                    <div class="toggle-container">
+                        <label class="toggle-switch">
+                            <input type="checkbox" id="closeToggle" onchange="filterEntries()">
+                            <span class="slider"></span>
+                        </label>
+                        <span class="toggle-label">Close</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="status-bar">
+            <div class="status-item">
+                <span class="status-label">Status:</span>
+                <span id="statusText" class="status-text">Ready - Click Scan All Drives</span>
+            </div>
+            <div class="status-item">
+                <span class="status-label">Progress:</span>
+                <span id="progressText" class="status-text">0%</span>
+            </div>
+            <div class="status-item">
+                <span class="status-label">Entries Found:</span>
+                <span id="entriesFound" class="status-text">0</span>
+            </div>
+            <div class="status-item">
+                <span class="status-label">Oldest Entry:</span>
+                <span id="oldestEntry" class="status-text">N/A</span>
+            </div>
+            <div class="status-item">
+                <span class="status-label">Files/Dirs:</span>
+                <span id="filesDirsCount" class="status-text">0/0</span>
+            </div>
+
+        </div>
+        
+        <div class="content-area">
+            <div class="grid-header">
+                <div>USN Number</div>
+                <div>Filename</div>
+                <div>Action</div>
+                <div>Path</div>
+                <div>Timestamp</div>
+            </div>
+            
+            <div id="entriesGrid" class="files-grid">
+                <div class="no-results">
+                    No journal entries yet.<br>
+                    Click "Scan All Drives" to parse USN Journal from all available drives.
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="contextMenu" class="context-menu" style="display: none;">
+        <div class="context-menu-item" onclick="showFileInfo()">Show File Info</div>
+        <div class="context-menu-item" onclick="copyUSN()">Copy USN Number</div>
+        <div class="context-menu-item" onclick="copyPath()">Copy Full Path</div>
+    </div>
+
+    <div id="detailModal" class="detail-modal">
+        <div class="modal-header">
+            <div class="modal-title">File Information</div>
+            <button class="modal-close" onclick="closeDetailModal()">×</button>
+        </div>
+        <div class="modal-content">
+            <div class="stats-grid">
+                <div class="stat-card">
+                    <div class="stat-value" id="detailTotalActions">0</div>
+                    <div class="stat-label">Total Actions</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value" id="detailFirstSeen">N/A</div>
+                    <div class="stat-label">First Seen</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value" id="detailLastSeen">N/A</div>
+                    <div class="stat-label">Last Seen</div>
+                </div>
+            </div>
+            
+            <div class="grid-header">
+                <div>USN Number</div>
+                <div>Filename</div>
+                <div>Action</div>
+                <div>Path</div>
+                <div>Timestamp</div>
+            </div>
+            
+            <div id="detailEntriesGrid" class="files-grid">
+                <div class="no-results">No detailed information available.</div>
+            </div>
+        </div>
+    </div>
+
+    <div id="detailContextMenu" class="context-menu" style="display: none;">
+        <div class="context-menu-item" onclick="copyDetailUSN()">Copy USN Number</div>
+        <div class="context-menu-item" onclick="copyDetailPath()">Copy Full Path</div>
+    </div>
+
+    <script>
+        let allEntries = [];
+        let filteredEntries = [];
+        let isScanning = false;
+        let isDragging = false;
+        let dragOffset = { x: 0, y: 0 };
+        let selectedEntry = null;
+        let contextMenu = null;
+        
+        // Performance optimization variables
+        let searchIndex = null;
+        let cachedFilteredResults = new Map();
+        let isFiltering = false;
+        let lastFilterTime = 0;
+        
+        // File info optimization variables
+        let fileInfoCache = new Map(); // Cache for file info results
+        let detailVisibleStart = 0;
+        let detailVisibleEnd = 100;
+        let detailCachedVisibleRows = new Map();
+        let detailGridContainer = null;
+        
+        // Virtual scrolling variables
+        let visibleStart = 0;
+        let visibleEnd = 100;
+        const ITEMS_PER_PAGE = 80; // Show more items per page
+        const RENDER_BUFFER = 15;
+        const ROW_HEIGHT = 49; // Height of each grid row (smaller for more results)
+        let gridContainer = null;
+        let cachedVisibleRows = new Map();
+
+        function minimizeWindow() {
+            if (window.pywebview && window.pywebview.api) {
+                pywebview.api.window_minimize();
+            }
+        }
+
+        function maximizeWindow() {
+            if (window.pywebview && window.pywebview.api) {
+                pywebview.api.window_maximize();
+            }
+        }
+
+        function closeWindow() {
+            if (window.pywebview && window.pywebview.api) {
+                pywebview.api.window_close();
+            }
+        }
+
+        const titleBar = document.getElementById('titleBar');
+        titleBar.addEventListener('mousedown', startDrag);
+        document.addEventListener('mousemove', doDrag);
+        document.addEventListener('mouseup', stopDrag);
+
+        function startDrag(e) {
+            isDragging = true;
+            dragOffset.x = e.clientX;
+            dragOffset.y = e.clientY;
+            titleBar.style.cursor = 'grabbing';
+            e.preventDefault();
+        }
+
+        function doDrag(e) {
+            if (!isDragging) return;
+            
+            if (window.pywebview && window.pywebview.api) {
+                const moveX = e.screenX - dragOffset.x;
+                const moveY = e.screenY - dragOffset.y;
+                pywebview.api.window_move(moveX, moveY);
+            }
+        }
+
+        function stopDrag() {
+            isDragging = false;
+            titleBar.style.cursor = 'grab';
+        }
+
+        async function startScan() {
+            if (isScanning) return;
+            
+            isScanning = true;
+            updateUIForScanning(true);
+            updateStatus('Scanning all drives...', 0, 0, 'N/A', '0/0');
+            
+            try {
+                if (window.pywebview && window.pywebview.api) {
+                    const success = await pywebview.api.start_scan();
+                    if (!success) {
+                        throw new Error('Failed to start scan');
+                    }
+                } else {
+                    throw new Error('Python backend not available');
+                }
+            } catch (e) {
+                console.error('Error starting scan:', e);
+                showError('Failed to start scan: ' + e.message);
+                updateUIForScanning(false);
+            }
+        }
+
+        async function stopScan() {
+            if (!isScanning) return;
+            
+            try {
+                if (window.pywebview && window.pywebview.api) {
+                    await pywebview.api.stop_scan();
+                }
+            } catch (e) {
+                console.error('Error stopping scan:', e);
+            }
+            
+            updateUIForScanning(false);
+        }
+
+        async function clearResults() {
+            try {
+                if (window.pywebview && window.pywebview.api) {
+                    await pywebview.api.clear_results();
+                }
+                clearAllResults();
+                updateStatus('Ready - Click Scan All Drives', 0, 0, 'N/A', '0/0');
+            } catch (e) {
+                console.error('Error clearing results:', e);
+            }
+        }
+
+        async function exportResults() {
+            if (allEntries.length === 0) {
+                showError('No results to export');
+                return;
+            }
+            
+            try {
+                if (window.pywebview && window.pywebview.api) {
+                    await pywebview.api.export_results();
+                }
+            } catch (e) {
+                console.error('Error exporting results:', e);
+                showError('Export failed: ' + e.message);
+            }
+        }
+
+        function clearAllResults() {
+            allEntries = [];
+            const grid = document.getElementById('entriesGrid');
+            grid.innerHTML = '<div class="no-results">No journal entries yet.<br>Click "Scan All Drives" to parse USN Journal from all available drives.</div>';
+            document.getElementById('entriesFound').textContent = '0';
+        }
+
+        function updateUIForScanning(scanning) {
+            isScanning = scanning;
+            const scanBtn = document.getElementById('scanBtn');
+            const stopBtn = document.getElementById('stopBtn');
+            const clearBtn = document.getElementById('clearBtn');
+            const exportBtn = document.getElementById('exportBtn');
+            
+            scanBtn.disabled = scanning;
+            stopBtn.disabled = !scanning;
+            clearBtn.disabled = scanning;
+            exportBtn.disabled = scanning;
+            
+            const buttonText = scanBtn.querySelector('.button-text');
+            const buttonLoading = scanBtn.querySelector('.button-loading');
+            
+            if (scanning) {
+                buttonText.style.display = 'none';
+                buttonLoading.style.display = 'inline';
+                document.getElementById('statusText').className = 'status-text scanning';
+            } else {
+                buttonText.style.display = 'inline';
+                buttonLoading.style.display = 'none';
+                document.getElementById('statusText').className = 'status-text';
+            }
+        }
+
+        function updateStatus(status, progress, entries, oldest, filesDirs) {
+            document.getElementById('statusText').textContent = status;
+            document.getElementById('progressText').textContent = progress + '%';
+            document.getElementById('entriesFound').textContent = entries;
+            document.getElementById('oldestEntry').textContent = oldest;
+            document.getElementById('filesDirsCount').textContent = filesDirs;
+            
+
+        }
+
+        function showError(message) {
+            document.getElementById('statusText').textContent = 'Error: ' + message;
+            document.getElementById('statusText').className = 'status-text error';
+        }
+
+        function loadAllEntries(entries) {
+            // Load all entries at once (called after scan completes)
+            console.time('dataProcessing');
+            allEntries = entries;
+            
+            // Build search index for instant search
+            buildSearchIndex();
+            
+            // Initialize virtual scrolling
+            initializeVirtualScrolling();
+            
+            // Initial filter with all entries
+            filterEntries();
+            
+            console.timeEnd('dataProcessing');
+            console.log(`Loaded ${entries.length} entries`);
+        }
+        
+        function buildSearchIndex() {
+            console.time('buildIndex');
+            searchIndex = {
+                names: new Array(allEntries.length),
+                paths: new Array(allEntries.length),
+                usns: new Array(allEntries.length),
+                reasons: new Array(allEntries.length),
+                timestamps: new Array(allEntries.length),
+                // Add optimized lookup maps for faster searching
+                nameMap: new Map(),
+                pathMap: new Map(),
+                reasonMap: new Map()
+            };
+            
+            // Build optimized search indices with lookup maps
+            for (let i = 0; i < allEntries.length; i++) {
+                const entry = allEntries[i];
+                const name = (entry.name || '').toLowerCase();
+                const path = (entry.path || '').toLowerCase();
+                const usn = (entry.usn || '').toLowerCase();
+                const reason = (entry.reason || '').toLowerCase();
+                
+                searchIndex.names[i] = name;
+                searchIndex.paths[i] = path;
+                searchIndex.usns[i] = usn;
+                searchIndex.reasons[i] = reason;
+                searchIndex.timestamps[i] = entry.timestamp || '';
+                
+                // Build lookup maps for instant filtering
+                if (name) {
+                    if (!searchIndex.nameMap.has(name)) {
+                        searchIndex.nameMap.set(name, []);
+                    }
+                    searchIndex.nameMap.get(name).push(i);
+                }
+                
+                if (path) {
+                    if (!searchIndex.pathMap.has(path)) {
+                        searchIndex.pathMap.set(path, []);
+                    }
+                    searchIndex.pathMap.get(path).push(i);
+                }
+                
+                if (reason) {
+                    if (!searchIndex.reasonMap.has(reason)) {
+                        searchIndex.reasonMap.set(reason, []);
+                    }
+                    searchIndex.reasonMap.get(reason).push(i);
+                }
+            }
+            
+            console.timeEnd('buildIndex');
+        }
+        
+        function initializeVirtualScrolling() {
+            gridContainer = document.getElementById('entriesGrid');
+            if (gridContainer) {
+                // Use debounced scroll handler for better performance
+                let scrollTimeout;
+                const debouncedScrollHandler = () => {
+                    if (scrollTimeout) cancelAnimationFrame(scrollTimeout);
+                    scrollTimeout = requestAnimationFrame(handleVirtualScroll);
+                };
+                
+                gridContainer.addEventListener('scroll', debouncedScrollHandler, { passive: true });
+                
+                // Force initial render
+                setTimeout(() => handleVirtualScroll(), 50);
+            }
+        }
+        
+        function handleVirtualScroll() {
+            if (!gridContainer || !filteredEntries.length) return;
+            
+            const scrollTop = gridContainer.scrollTop;
+            const scrollLeft = gridContainer.scrollLeft;
+            const containerHeight = gridContainer.clientHeight;
+            
+            // Calculate visible range with improved efficiency
+            const startIndex = Math.max(0, Math.floor(scrollTop / ROW_HEIGHT) - RENDER_BUFFER);
+            const endIndex = Math.min(filteredEntries.length, Math.ceil((scrollTop + containerHeight) / ROW_HEIGHT) + RENDER_BUFFER);
+            
+            // Only re-render if the visible range has changed significantly
+            if (startIndex !== visibleStart || endIndex !== visibleEnd) {
+                visibleStart = startIndex;
+                visibleEnd = endIndex;
+                renderVisibleRows();
+                
+                // Preserve horizontal scroll position
+                const buffer = gridContainer.querySelector('.virtual-scroll-buffer');
+                if (buffer) {
+                    buffer.style.transform = `translateY(${visibleStart * ROW_HEIGHT}px) translateX(${-scrollLeft}px)`;
+                }
+            } else {
+                // Just update horizontal scroll position if vertical hasn't changed
+                const buffer = gridContainer.querySelector('.virtual-scroll-buffer');
+                if (buffer) {
+                    buffer.style.transform = `translateY(${visibleStart * ROW_HEIGHT}px) translateX(${-scrollLeft}px)`;
+                }
+            }
+        }
+        
+        function renderVisibleRows() {
+            const startTime = performance.now();
+            
+            // Only keep cached rows that are in the visible range
+            const keepCache = new Map();
+            for (let i = Math.max(0, visibleStart - RENDER_BUFFER * 2); i < Math.min(filteredEntries.length, visibleEnd + RENDER_BUFFER * 2); i++) {
+                const cacheKey = i.toString();
+                if (cachedVisibleRows.has(cacheKey)) {
+                    keepCache.set(cacheKey, cachedVisibleRows.get(cacheKey));
+                }
+            }
+            cachedVisibleRows.clear();
+            cachedVisibleRows = keepCache;
+            
+            // Create fragment for efficient DOM manipulation
+            const fragment = document.createDocumentFragment();
+            
+            // Pre-calculate entries slice for better performance
+            const visibleEntries = filteredEntries.slice(visibleStart, visibleEnd);
+            
+            for (let i = 0; i < visibleEntries.length; i++) {
+                const actualIndex = visibleStart + i;
+                const cacheKey = actualIndex.toString();
+                
+                if (!cachedVisibleRows.has(cacheKey)) {
+                    const entry = visibleEntries[i];
+                    if (entry) {
+                        const row = createOptimizedGridRow(entry, actualIndex);
+                        cachedVisibleRows.set(cacheKey, row);
+                    }
+                }
+                
+                const row = cachedVisibleRows.get(cacheKey);
+                if (row) {
+                    fragment.appendChild(row);
+                }
+            }
+            
+            // Optimized DOM update
+            const totalHeight = filteredEntries.length * ROW_HEIGHT;
+            const offsetY = visibleStart * ROW_HEIGHT;
+            const scrollLeft = gridContainer.scrollLeft;
+            
+            const existingBuffer = gridContainer.querySelector('.virtual-scroll-buffer');
+            if (existingBuffer) {
+                existingBuffer.innerHTML = '';
+                existingBuffer.style.height = totalHeight + 'px';
+                existingBuffer.style.transform = `translateY(${offsetY}px) translateX(${-scrollLeft}px)`;
+                existingBuffer.appendChild(fragment);
+            } else {
+                const buffer = document.createElement('div');
+                buffer.className = 'virtual-scroll-buffer';
+                buffer.style.height = totalHeight + 'px';
+                buffer.style.position = 'relative';
+                buffer.style.transform = `translateY(${offsetY}px) translateX(${-scrollLeft}px)`;
+                buffer.appendChild(fragment);
+                gridContainer.innerHTML = '';
+                gridContainer.appendChild(buffer);
+            }
+            
+            const renderTime = performance.now() - startTime;
+            if (renderTime > 16) { // Log slow renders for debugging
+                console.log(`Virtual scroll render took ${renderTime.toFixed(2)}ms for ${visibleEntries.length} rows`);
+            }
+        }
+        
+        function createOptimizedGridRow(entry, index) {
+            const row = document.createElement('div');
+            row.className = 'grid-row';
+            row.dataset.entryIndex = index; // Add index for faster access
+            row.dataset.entry = JSON.stringify(entry);
+            
+            // Optimize string building with enhanced download tracking
+            const reasonClass = getReasonClass(entry.reason);
+            const reasonTitle = formatReason(entry.reason);
+            
+            // Clean filename display
+            let displayName = entry.name;
+            
+            row.innerHTML = `
+                <div class="usn-number" title="${entry.usn}">${entry.usn}</div>
+                <div class="filename" title="${entry.name}">${displayName}</div>
+                <div class="${reasonClass}" title="${entry.reason}">${reasonTitle}</div>
+                <div class="filepath" title="${entry.path}">${entry.path}</div>
+                <div class="timestamp" title="${entry.timestamp}">${formatDate(entry.timestamp)}</div>
+            `;
+            
+            // Add context menu event listener once
+            row.addEventListener('contextmenu', (e) => {
+                e.preventDefault();
+                showContextMenu(e, entry);
+            });
+            
+            return row;
+        }
+
+        function addEntry(entry) {
+            // Legacy function - not used anymore
+            allEntries.push(entry);
+        }
+
+        function addEntryBatch(entries) {
+            // Legacy function - not used anymore
+            allEntries = allEntries.concat(entries);
+        }
+
+        function scanComplete() {
+            updateUIForScanning(false);
+            
+            if (allEntries.length > 0) {
+                const oldest = allEntries.reduce((oldest, entry) => 
+                    entry.timestamp && (!oldest || entry.timestamp < oldest) ? entry.timestamp : oldest, null);
+                const files = allEntries.filter(e => !e.isDirectory).length;
+                const dirs = allEntries.filter(e => e.isDirectory).length;
+                
+                updateStatus('Complete - ' + allEntries.length + ' entries found', 100, allEntries.length, 
+                           formatDate(oldest), files + '/' + dirs);
+                           
+            } else {
+                updateStatus('Complete - No journal entries found', 100, 0, 'N/A', '0/0');
+            }
+        }
+
+        function formatDate(timestamp) {
+            if (!timestamp) return 'N/A';
+            const date = new Date(timestamp);
+            return date.toLocaleDateString() + ' ' + date.toLocaleTimeString();
+        }
+
+        function formatReason(reason) {
+            const reasonMap = {
+                'DATA_OVERWRITE': 'Data Overwrite',
+                'DATA_EXTEND': 'Data Extend', 
+                'DATA_TRUNCATION': 'Data Truncation',
+                'NAMED_DATA_OVERWRITE': 'Named Data Overwrite',
+                'NAMED_DATA_EXTEND': 'Named Data Extend',
+                'NAMED_DATA_TRUNCATION': 'Named Data Truncation',
+                'FILE_CREATE': 'File Create',
+                'FILE_DELETE': 'File Delete',
+                'EA_CHANGE': 'EA Change',
+                'SECURITY_CHANGE': 'Security Change',
+                'RENAME_OLD_NAME': 'Rename Old',
+                'RENAME_NEW_NAME': 'Rename New',
+                'INDEXABLE_CHANGE': 'Indexable Change',
+                'BASIC_INFO_CHANGE': 'Basic Info Change',
+                'HARD_LINK_CHANGE': 'Hard Link Change',
+                'COMPRESSION_CHANGE': 'Compression Change',
+                'ENCRYPTION_CHANGE': 'Encryption Change',
+                'OBJECT_ID_CHANGE': 'Object ID Change',
+                'REPARSE_POINT_CHANGE': 'Reparse Point Change',
+                'STREAM_CHANGE': 'Stream Change',
+                'TRANSACTED_CHANGE': 'Transacted Change',
+                'INTEGRITY_CHANGE': 'Integrity Change',
+                'CLOSE': 'Close'
+            };
+            
+            if (reason.includes(' | ')) {
+                return reason.split(' | ').map(r => reasonMap[r] || r).join(' | ');
+            }
+            return reasonMap[reason] || reason;
+        }
+
+        function getReasonClass(reason) {
+            const classMap = {
+                'DATA_OVERWRITE': 'reason-data-overwrite',
+                'DATA_EXTEND': 'reason-data-extended',
+                'DATA_TRUNCATION': 'reason-data-truncation',
+                'NAMED_DATA_OVERWRITE': 'reason-data-overwrite',
+                'NAMED_DATA_EXTEND': 'reason-data-extended',
+                'NAMED_DATA_TRUNCATION': 'reason-data-truncation',
+                'FILE_CREATE': 'reason-file-create',
+                'FILE_DELETE': 'reason-file-delete',
+                'EA_CHANGE': 'reason-ea-change',
+                'SECURITY_CHANGE': 'reason-security-change',
+                'RENAME_OLD_NAME': 'reason-rename-old-name',
+                'RENAME_NEW_NAME': 'reason-rename-new-name',
+                'INDEXABLE_CHANGE': 'reason-indexable-change',
+                'BASIC_INFO_CHANGE': 'reason-basic-info-change',
+                'HARD_LINK_CHANGE': 'reason-hard-link-change',
+                'COMPRESSION_CHANGE': 'reason-compression-change',
+                'ENCRYPTION_CHANGE': 'reason-encryption-change',
+                'OBJECT_ID_CHANGE': 'reason-object-id-change',
+                'REPARSE_POINT_CHANGE': 'reason-reparse-point-change',
+                'STREAM_CHANGE': 'reason-stream-change',
+                'TRANSACTED_CHANGE': 'reason-transacted-change',
+                'INTEGRITY_CHANGE': 'reason-integirty-change',
+                'CLOSE': 'reason-close'
+            };
+            
+            if (reason.includes(' | ')) {
+                const firstReason = reason.split(' | ')[0];
+                return classMap[firstReason] || '';
+            }
+            return classMap[reason] || '';
+        }
+
+        function createGridRow(entry) {
+            const row = document.createElement('div');
+            row.className = 'grid-row';
+            row.dataset.entry = JSON.stringify(entry);
+            
+            row.innerHTML = `
+                <div class="usn-number" title="${entry.usn}">${entry.usn}</div>
+                <div class="filename" title="${entry.name}">${entry.name}</div>
+                <div class="filepath" title="${entry.path}">${entry.path}</div>
+                <div class="timestamp" title="${entry.timestamp}">${formatDate(entry.timestamp)}</div>
+                <div class="${getReasonClass(entry.reason)}" title="${entry.reason}">${formatReason(entry.reason)}</div>
+            `;
+            
+            row.addEventListener('contextmenu', (e) => {
+                e.preventDefault();
+                showContextMenu(e, entry);
+            });
+            
+            return row;
+        }
+
+        function clearAllResults() {
+            allEntries = [];
+            filteredEntries = [];
+            
+            // Clear caches and indices
+            searchIndex = null;
+            cachedFilteredResults.clear();
+            cachedVisibleRows.clear();
+            
+            // Clear lookup tables (like clearing C# USNFiles and USNDirectories)
+            fileReferenceLookup.clear();
+            directoryReferenceLookup.clear();
+            nameLookup.clear();
+            
+            const grid = document.getElementById('entriesGrid');
+            grid.innerHTML = '<div class="no-results">No journal entries yet.<br>Click "Scan All Drives" to parse USN Journal from all available drives.</div>';
+            document.getElementById('entriesFound').textContent = '0';
+        }
+
+        function filterEntries() {
+            const searchTerm = document.getElementById('searchInput').value.toLowerCase().trim();
+            
+            // Get all filter states
+            const filters = {
+                fileCreate: document.getElementById('fileCreateToggle').checked,
+                fileDelete: document.getElementById('fileDeleteToggle').checked,
+                rename: document.getElementById('renameToggle').checked,
+                dataExtend: document.getElementById('dataExtendToggle').checked,
+                dataOverwrite: document.getElementById('dataOverwriteToggle').checked,
+                dataTruncation: document.getElementById('dataTruncationToggle').checked,
+                securityChange: document.getElementById('securityChangeToggle').checked,
+                basicInfoChange: document.getElementById('basicInfoChangeToggle').checked,
+                streamChange: document.getElementById('streamChangeToggle').checked,
+                close: document.getElementById('closeToggle').checked
+            };
+            
+            // Check if any filter is active
+            const anyFilterActive = Object.values(filters).some(v => v);
+            
+            // Create cache key for optimization
+            const cacheKey = `${searchTerm}|${JSON.stringify(filters)}`;
+            
+            // Use cached results if available (instant results)
+            if (cachedFilteredResults.has(cacheKey)) {
+                filteredEntries = cachedFilteredResults.get(cacheKey);
+                updateEntriesDisplay();
+                
+
+                return;
+            }
+            
+            // Use optimized filtering for better performance (very low threshold)
+            if (allEntries.length > 100) {
+                filterEntriesOptimized(searchTerm, filters, anyFilterActive, cacheKey);
+            } else {
+                filterEntriesSync(searchTerm, filters, anyFilterActive, cacheKey);
+            }
+        }
+        
+        function debounce(func, wait) {
+            let timeout;
+            return function executedFunction(...args) {
+                const later = () => {
+                    clearTimeout(timeout);
+                    func(...args);
+                };
+                clearTimeout(timeout);
+                timeout = setTimeout(later, wait);
+            };
+        }
+        
+        // Ultra-fast debounced version (5ms for instant response)
+        const debouncedFilterEntries = debounce(filterEntries, 5);
+        
+        function filterEntriesOptimized(searchTerm, filters, anyFilterActive, cacheKey) {
+            console.time('optimizedFilter');
+            
+            const startTime = performance.now();
+            isFiltering = true;
+            
+            // Ultra-fast search using lookup maps
+            let candidateIndices = new Set();
+            
+            if (searchTerm) {
+                // Use optimized lookup maps for instant search
+                const searchLower = searchTerm.toLowerCase();
+                
+                // Quick exact matches first
+                if (searchIndex.nameMap.has(searchLower)) {
+                    searchIndex.nameMap.get(searchLower).forEach(i => candidateIndices.add(i));
+                }
+                if (searchIndex.pathMap.has(searchLower)) {
+                    searchIndex.pathMap.get(searchLower).forEach(i => candidateIndices.add(i));
+                }
+                
+                // Add fuzzy matches for partial searches
+                if (searchTerm.length >= 2) {
+                    for (let i = 0; i < allEntries.length && candidateIndices.size < 1000; i++) {
+                        if (candidateIndices.has(i)) continue;
+                        
+                        const name = searchIndex.names[i];
+                        const path = searchIndex.paths[i];
+                        const usn = searchIndex.usns[i];
+                        
+                        if (name.includes(searchLower) || path.includes(searchLower) || usn.includes(searchLower)) {
+                            candidateIndices.add(i);
+                        }
+                    }
+                }
+                
+                // If no matches found, return empty result immediately
+                if (candidateIndices.size === 0) {
+                    filteredEntries = [];
+                    isFiltering = false;
+                    cachedFilteredResults.set(cacheKey, filteredResults);
+                    updateEntriesDisplay();
+                    console.timeEnd('optimizedFilter');
+                    console.log(`No matches found for "${searchTerm}" in ${(performance.now() - startTime).toFixed(2)}ms`);
+                    return;
+                }
+            } else {
+                // No search term - use all indices
+                for (let i = 0; i < allEntries.length; i++) {
+                    candidateIndices.add(i);
+                }
+            }
+            
+            // Apply reason filters to candidates
+            if (anyFilterActive) {
+                const filteredCandidates = new Set();
+                
+                for (const index of candidateIndices) {
+                    const reason = searchIndex.reasons[index];
+                    let reasonMatch = false;
+                    
+                    if ((filters.fileCreate && reasonPatterns.file_create.test(reason)) ||
+                        (filters.fileDelete && reasonPatterns.file_delete.test(reason)) ||
+                        (filters.rename && reasonPatterns.rename.test(reason)) ||
+                        (filters.dataExtend && reasonPatterns.data_extend.test(reason)) ||
+                        (filters.dataOverwrite && reasonPatterns.data_overwrite.test(reason)) ||
+                        (filters.dataTruncation && reasonPatterns.data_truncation.test(reason)) ||
+                        (filters.securityChange && reasonPatterns.security_change.test(reason)) ||
+                        (filters.basicInfoChange && reasonPatterns.basic_info_change.test(reason)) ||
+                        (filters.streamChange && reasonPatterns.stream_change.test(reason)) ||
+                        (filters.close && reasonPatterns.close.test(reason))) {
+                        reasonMatch = true;
+                    }
+                    
+                    if (reasonMatch) {
+                        filteredCandidates.add(index);
+                    }
+                }
+                
+                candidateIndices = filteredCandidates;
+            }
+            
+            // Convert indices back to entries
+            filteredEntries = Array.from(candidateIndices).map(i => allEntries[i]);
+            
+            isFiltering = false;
+            lastFilterTime = Date.now();
+            cachedFilteredResults.set(cacheKey, filteredEntries);
+            
+            console.timeEnd('optimizedFilter');
+            console.log(`Filtered ${allEntries.length} entries to ${filteredEntries.length} in ${(performance.now() - startTime).toFixed(2)}ms`);
+            
+            updateEntriesDisplay();
+        }
+        
+        function filterEntriesSync(searchTerm, filters, anyFilterActive, cacheKey) {
+            const startTime = performance.now();
+            
+            const filteredResults = [];
+            for (let i = 0; i < allEntries.length; i++) {
+                // Ultra-fast search using pre-built indices
+                if (searchTerm) {
+                    const name = searchIndex.names[i];
+                    const path = searchIndex.paths[i];
+                    const usn = searchIndex.usns[i];
+                    
+                    if (!name.includes(searchTerm) && !path.includes(searchTerm) && !usn.includes(searchTerm)) {
+                        continue;
+                    }
+                }
+                
+                // Apply reason filters if any are active
+                if (anyFilterActive) {
+                    const reason = searchIndex.reasons[i];
+                    let reasonMatch = false;
+                    
+                    if ((filters.fileCreate && reasonPatterns.file_create.test(reason)) ||
+                        (filters.fileDelete && reasonPatterns.file_delete.test(reason)) ||
+                        (filters.rename && reasonPatterns.rename.test(reason)) ||
+                        (filters.dataExtend && reasonPatterns.data_extend.test(reason)) ||
+                        (filters.dataOverwrite && reasonPatterns.data_overwrite.test(reason)) ||
+                        (filters.dataTruncation && reasonPatterns.data_truncation.test(reason)) ||
+                        (filters.securityChange && reasonPatterns.security_change.test(reason)) ||
+                        (filters.basicInfoChange && reasonPatterns.basic_info_change.test(reason)) ||
+                        (filters.streamChange && reasonPatterns.stream_change.test(reason)) ||
+                        (filters.close && reasonPatterns.close.test(reason))) {
+                        reasonMatch = true;
+                    }
+                    
+                    if (!reasonMatch) continue;
+                }
+                
+                filteredResults.push(allEntries[i]);
+            }
+
+            filteredEntries = filteredResults;
+            lastFilterTime = Date.now();
+            cachedFilteredResults.set(cacheKey, filteredResults);
+            
+            console.log(`Filtered ${allEntries.length} entries to ${filteredEntries.length} in ${(performance.now() - startTime).toFixed(2)}ms`);
+            updateEntriesDisplay();
+        }
+        
+        function updateEntriesDisplay() {
+            const grid = document.getElementById('entriesGrid');
+            
+            if (filteredEntries.length === 0) {
+                grid.innerHTML = '<div class="no-results">No entries found matching current filters.</div>';
+                document.getElementById('entriesFound').textContent = '0';
+                return;
+            }
+            
+            document.getElementById('entriesFound').textContent = filteredEntries.length;
+            
+            // Preserve scroll position when filtering/unfiltering
+            const scrollTop = grid.scrollTop;
+            const scrollLeft = grid.scrollLeft;
+            
+            // Clear cache and reset virtual scrolling
+            cachedVisibleRows.clear();
+            visibleStart = 0;
+            visibleEnd = 0;
+            
+            // Force virtual scroll update
+            handleVirtualScroll();
+            
+            // Restore scroll position after virtual scrolling is updated
+            setTimeout(() => {
+                grid.scrollTop = scrollTop;
+                grid.scrollLeft = scrollLeft;
+            }, 50);
+        }
+
+        function showContextMenu(e, entry) {
+            selectedEntry = entry;
+            contextMenu = document.getElementById('contextMenu');
+            contextMenu.style.display = 'block';
+            contextMenu.style.left = e.pageX + 'px';
+            contextMenu.style.top = e.pageY + 'px';
+            
+            document.addEventListener('click', hideContextMenu);
+        }
+
+        function hideContextMenu() {
+            if (contextMenu) {
+                contextMenu.style.display = 'none';
+            }
+            document.removeEventListener('click', hideContextMenu);
+        }
+
+        // Pre-built lookup tables for efficient file info queries (like C# USNFiles and USNDirectories)
+        let fileReferenceLookup = new Map();     // fileReference -> entries[]
+        let directoryReferenceLookup = new Map(); // parentFileReference -> entries[]
+        let nameLookup = new Map();               // baseName -> entries[]
+        
+        function buildOptimizedLookupTables() {
+            fileReferenceLookup.clear();
+            directoryReferenceLookup.clear();
+            nameLookup.clear();
+            
+            for (let i = 0; i < allEntries.length; i++) {
+                const entry = allEntries[i];
+                const baseName = getBaseName(entry.name).toLowerCase();
+                
+                // File reference lookup (primary strategy - like C# USNFiles)
+                if (entry.fileReference) {
+                    if (!fileReferenceLookup.has(entry.fileReference)) {
+                        fileReferenceLookup.set(entry.fileReference, []);
+                    }
+                    fileReferenceLookup.get(entry.fileReference).push(entry);
+                }
+                
+                // Directory lookup (like C# USNDirectories)
+                if (entry.parentFileReference) {
+                    if (!directoryReferenceLookup.has(entry.parentFileReference)) {
+                        directoryReferenceLookup.set(entry.parentFileReference, []);
+                    }
+                    directoryReferenceLookup.get(entry.parentFileReference).push(entry);
+                }
+                
+                // Name lookup for download sequences
+                if (baseName) {
+                    if (!nameLookup.has(baseName)) {
+                        nameLookup.set(baseName, []);
+                    }
+                    nameLookup.get(baseName).push(entry);
+                }
+            }
+        }
+        
+        function showFileInfo() {
+            if (!selectedEntry) return;
+            
+            const modal = document.getElementById('detailModal');
+            const detailGrid = document.getElementById('detailEntriesGrid');
+            detailGridContainer = detailGrid;
+            
+            // Use cached results if available for instant loading
+            const cacheKey = JSON.stringify({
+                fileRef: selectedEntry.fileReference,
+                parentRef: selectedEntry.parentFileReference,
+                baseName: getBaseName(selectedEntry.name).toLowerCase(),
+                isTemp: isTempFile(selectedEntry.name)
+            });
+            
+            let fileEntries;
+            if (fileInfoCache.has(cacheKey)) {
+                // Instant loading from cache
+                fileEntries = fileInfoCache.get(cacheKey);
+            } else {
+                // Build lookup tables only once (lazy initialization)
+                if (fileReferenceLookup.size === 0) {
+                    console.time('buildLookupTables');
+                    buildOptimizedLookupTables();
+                    console.timeEnd('buildLookupTables');
+                }
+                
+                // Use efficient lookup like the C# code (USNFiles approach)
+                const matchedEntries = new Set();
+                
+                // Primary strategy: Direct file reference match (most reliable - like C# USNFiles)
+                if (selectedEntry.fileReference && fileReferenceLookup.has(selectedEntry.fileReference)) {
+                    fileReferenceLookup.get(selectedEntry.fileReference).forEach(entry => matchedEntries.add(entry));
+                }
+                
+                // Enhanced download sequence matching
+                const selectedBaseName = getBaseName(selectedEntry.name).toLowerCase();
+                const isTempSelected = isTempFile(selectedEntry.name);
+                
+                if (isTempSelected) {
+                    // For temporary files (.crdownload), find the specific completed file
+                    // Look for files in the same directory with the same base name
+                    if (selectedEntry.parentFileReference && directoryReferenceLookup.has(selectedEntry.parentFileReference)) {
+                        directoryReferenceLookup.get(selectedEntry.parentFileReference).forEach(entry => {
+                            const entryBaseName = getBaseName(entry.name).toLowerCase();
+                            
+                            // Match files with the same base name that are NOT temporary
+                            if (entryBaseName === selectedBaseName && !isTempFile(entry.name)) {
+                                matchedEntries.add(entry);
+                            }
+                            
+                            // Also include the original temp file itself
+                            if (isTempFile(entry.name) && getBaseName(entry.name).toLowerCase() === selectedBaseName) {
+                                matchedEntries.add(entry);
+                            }
+                        });
+                    }
+                } else {
+                    // For completed files, look for their temporary predecessors
+                    if (selectedEntry.parentFileReference && directoryReferenceLookup.has(selectedEntry.parentFileReference)) {
+                        directoryReferenceLookup.get(selectedEntry.parentFileReference).forEach(entry => {
+                            const entryBaseName = getBaseName(entry.name).toLowerCase();
+                            
+                            // Match temporary files with the same base name
+                            if (entryBaseName === selectedBaseName && isTempFile(entry.name)) {
+                                matchedEntries.add(entry);
+                            }
+                        });
+                    }
+                    
+                    // Also include the completed file itself
+                    matchedEntries.add(selectedEntry);
+                }
+                
+                // If still no matches, use basic fallback
+                if (matchedEntries.size === 0) {
+                    matchedEntries.add(selectedEntry);
+                }
+                
+                fileEntries = Array.from(matchedEntries);
+                
+                // Cache the result for instant future access
+                fileInfoCache.set(cacheKey, fileEntries);
+                
+                // Auto-clean cache if it gets too large
+                if (fileInfoCache.size > 50) {
+                    const firstKey = fileInfoCache.keys().next().value;
+                    fileInfoCache.delete(firstKey);
+                }
+            }
+            
+            // Enhanced sorting with download sequence awareness
+            fileEntries.sort((a, b) => {
+                if (!a.timestamp) return 1;
+                if (!b.timestamp) return -1;
+                
+                // For downloads, show temp files first, then completed files
+                const aIsTemp = isTempFile(a.name);
+                const bIsTemp = isTempFile(b.name);
+                
+                if (aIsTemp && !bIsTemp) return -1;  // Temp file comes first
+                if (!aIsTemp && bIsTemp) return 1;   // Completed file comes after temp
+                
+                // Same type, sort by timestamp
+                return a.timestamp.localeCompare(b.timestamp);
+            });
+            
+            // Group by base name for cleaner display, but maintain download sequence
+            const groupedEntries = new Map(); // baseName -> entries[]
+            
+            for (const entry of fileEntries) {
+                const baseName = getBaseName(entry.name).toLowerCase();
+                if (!groupedEntries.has(baseName)) {
+                    groupedEntries.set(baseName, []);
+                }
+                groupedEntries.get(baseName).push(entry);
+            }
+            
+            // Convert back to array for display (like C# array return)
+            const renameGroups = Array.from(groupedEntries.values());
+            
+            // Show all entries - no limit
+            const displayEntries = fileEntries;
+            const isLimited = false;
+            
+            document.getElementById('detailTotalActions').textContent = fileEntries.length;
+            
+            if (displayEntries.length > 0) {
+                const timestamps = displayEntries.filter(e => e.timestamp).map(e => e.timestamp);
+                document.getElementById('detailFirstSeen').textContent = timestamps.length > 0 ? formatDate(timestamps[0]) : 'N/A';
+                document.getElementById('detailLastSeen').textContent = timestamps.length > 0 ? formatDate(timestamps[timestamps.length - 1]) : 'N/A';
+            } else {
+                document.getElementById('detailFirstSeen').textContent = 'N/A';
+                document.getElementById('detailLastSeen').textContent = 'N/A';
+            }
+            
+            // Simple file information display
+            let fileInfo = selectedEntry.isDirectory ? 'Directory' : 'File';
+            
+            // Try to get actual file size if possible
+            try {
+                // This would need to be implemented in the backend to get actual file sizes
+                // For now, we'll just show the basic file info
+                const fileName = selectedEntry.name;
+                if (fileName) {
+                    fileInfo = fileName;
+                }
+            } catch (e) {
+                // Fallback to basic info
+                fileInfo = selectedEntry.isDirectory ? 'Directory' : 'File';
+            }
+            
+            // Initialize virtual scrolling for detail modal
+            initializeDetailVirtualScrolling();
+            
+            if (displayEntries.length === 0) {
+                detailGrid.innerHTML = '<div class="no-results">No detailed information available.</div>';
+            } else {
+                // Clear caches and initialize virtual scrolling
+                detailCachedVisibleRows.clear();
+                detailVisibleStart = 0;
+                detailVisibleEnd = 0;
+                
+                // Create a container for the virtual scroll buffer
+                detailGrid.innerHTML = '<div id="detailVirtualBuffer" class="detail-virtual-scroll-buffer"></div>';
+                
+                // Force initial render
+                setTimeout(() => handleDetailVirtualScroll(), 50);
+            }
+            
+            modal.style.display = 'flex';
+            hideContextMenu(); // Hide main context menu when opening detail modal
+        }
+
+        function closeDetailModal() {
+            const modal = document.getElementById('detailModal');
+            modal.style.display = 'none';
+            
+            // Hide detail context menu if open
+            if (detailContextMenu) {
+                detailContextMenu.style.display = 'none';
+            }
+            
+            // Clear selected detail entry
+            selectedDetailEntry = null;
+        }
+
+        function copyUSN() {
+            if (selectedEntry) {
+                copyToClipboard(selectedEntry.usn);
+            }
+            hideContextMenu();
+        }
+
+        function copyPath() {
+            if (selectedEntry) {
+                const fullPath = selectedEntry.path + '\\' + selectedEntry.name;
+                copyToClipboard(fullPath);
+            }
+            hideContextMenu();
+        }
+
+        function copyToClipboard(text) {
+            navigator.clipboard.writeText(text).then(() => {
+                showCopyFeedback('Copied to clipboard!');
+            }).catch(err => {
+                console.error('Failed to copy: ', err);
+                showCopyFeedback('Copy failed!');
+            });
+        }
+
+        function showCopyFeedback(text) {
+            const feedback = document.createElement('div');
+            feedback.className = 'copy-feedback';
+            feedback.textContent = text;
+            document.body.appendChild(feedback);
+            
+            setTimeout(() => {
+                if (feedback.parentNode) {
+                    feedback.parentNode.removeChild(feedback);
+                }
+            }, 2000);
+        }
+
+        async function loadDrives() {
+            try {
+                const driveList = document.getElementById('driveList');
+                driveList.textContent = 'Detecting drives...';
+                driveList.className = 'drive-list';
+                
+                if (typeof pywebview !== 'undefined' && pywebview.api) {
+                    const drives = await pywebview.api.get_available_drives();
+                    
+                    if (drives && drives.length > 0) {
+                        const driveLetters = drives.map(drive => `${drive.letter}:`).join(', ');
+                        driveList.textContent = driveLetters;
+                        driveList.className = 'drive-list active';
+                    } else {
+                        driveList.textContent = 'No NTFS drives found';
+                        driveList.className = 'drive-list error';
+                    }
+                } else {
+                    setTimeout(loadDrives, 500);
+                }
+            } catch (e) {
+                console.error('Error loading drives:', e);
+                const driveList = document.getElementById('driveList');
+                driveList.textContent = 'Error: ' + e.message;
+                driveList.className = 'drive-list error';
+            }
+        }
+
+        document.addEventListener('DOMContentLoaded', function() {
+            updateStatus('Ready - Click Scan All Drives', 0, 0, 'N/A', '0/0');
+            titleBar.style.cursor = 'grab';
+            
+            document.querySelector('.button-loading').style.display = 'none';
+            
+            setTimeout(loadDrives, 1000);
+            
+            document.addEventListener('contextmenu', (e) => {
+                if (e.target.closest('.grid-row')) {
+                    e.preventDefault();
+                }
+            });
+            
+
+        });
+        
+
+        
+
+        
+
+        
+        // Performance optimization: Pre-compile regex patterns
+        const reasonPatterns = {
+            file_create: /file_create/i,
+            file_delete: /file_delete/i,
+            rename: /rename/i,
+            data_extend: /data_extend/i,
+            data_overwrite: /data_overwrite/i,
+            data_truncation: /data_truncation/i,
+            security_change: /security_change/i,
+            basic_info_change: /basic_info_change/i,
+            stream_change: /stream_change/i,
+            close: /close/i
+        };
+        
+        // Helper functions for enhanced file matching
+        function isTempFile(filename) {
+            if (!filename) return false;
+            const tempExtensions = ['.crdownload', '.tmp', '.part', '.dmg', '.iso', '.bak', '.old', '.temp'];
+            const lowerName = filename.toLowerCase();
+            return tempExtensions.some(ext => lowerName.includes(ext));
+        }
+        
+        function getBaseName(filename) {
+            if (!filename) return '';
+            // Remove common temporary file extensions and patterns
+            let baseName = filename
+                .replace(/\.crdownload$/i, '')
+                .replace(/\.tmp$/i, '')
+                .replace(/\.part$/i, '')
+                .replace(/\.dmg$/i, '')
+                .replace(/\.iso$/i, '')
+                .replace(/\.bak$/i, '')
+                .replace(/\.old$/i, '')
+                .replace(/\.temp$/i, '')
+                .replace(/[\s\-\_\.]*(downloading|downloaded|temp|temporary)[\s\-\_\.]*/gi, '')
+                .replace(/unconfirmed[\s\-]*\d+/gi, '') // Remove "unconfirmed 123" patterns
+                .trim();
+            
+            // If nothing left, return original filename
+            return baseName || filename;
+        }
+        
+        function clearAllResults() {
+            allEntries = [];
+            filteredEntries = [];
+            
+            // Clear caches and indices
+            searchIndex = null;
+            cachedFilteredResults.clear();
+            cachedVisibleRows.clear();
+            
+            // Clear file info cache
+            fileInfoCache.clear();
+            detailCachedVisibleRows.clear();
+            
+            // Clear detail context menu
+            detailContextMenu = null;
+            selectedDetailEntry = null;
+            
+            // Clear lookup tables (like clearing C# USNFiles and USNDirectories)
+            fileReferenceLookup.clear();
+            directoryReferenceLookup.clear();
+            nameLookup.clear();
+            
+            const grid = document.getElementById('entriesGrid');
+            grid.innerHTML = '<div class="no-results">No journal entries yet.<br>Click "Scan All Drives" to parse USN Journal from all available drives.</div>';
+            document.getElementById('entriesFound').textContent = '0';
+            
+            // Clear performance cache
+            lastFilterTime = 0;
+            
+            // Force garbage collection if available
+            if (window.gc) {
+                window.gc();
+            }
+        }
+        
+        function initializeDetailVirtualScrolling() {
+            if (detailGridContainer) {
+                // Use debounced scroll handler for better performance
+                let scrollTimeout;
+                const debouncedScrollHandler = () => {
+                    if (scrollTimeout) cancelAnimationFrame(scrollTimeout);
+                    scrollTimeout = requestAnimationFrame(handleDetailVirtualScroll);
+                };
+                
+                detailGridContainer.addEventListener('scroll', debouncedScrollHandler, { passive: true });
+            }
+        }
+        
+        function handleDetailVirtualScroll() {
+            if (!detailGridContainer || !selectedEntry) return;
+            
+            const scrollTop = detailGridContainer.scrollTop;
+            const containerHeight = detailGridContainer.clientHeight;
+            
+            // Calculate visible range with improved efficiency
+            const startIndex = Math.max(0, Math.floor(scrollTop / ROW_HEIGHT) - RENDER_BUFFER);
+            const endIndex = Math.min(getCurrentDetailEntries().length, Math.ceil((scrollTop + containerHeight) / ROW_HEIGHT) + RENDER_BUFFER);
+            
+            // Only re-render if the visible range has changed significantly
+            if (startIndex !== detailVisibleStart || endIndex !== detailVisibleEnd) {
+                detailVisibleStart = startIndex;
+                detailVisibleEnd = endIndex;
+                renderDetailVisibleRows();
+                
+                // Preserve scroll position
+                const buffer = detailGridContainer.querySelector('.detail-virtual-scroll-buffer');
+                if (buffer) {
+                    buffer.style.transform = `translateY(${detailVisibleStart * ROW_HEIGHT}px)`;
+                }
+            }
+        }
+        
+        function getCurrentDetailEntries() {
+            // Get the current detail entries - this would need to be passed or stored
+            // For now, we'll recreate the logic from showFileInfo
+            const cacheKey = JSON.stringify({
+                fileRef: selectedEntry.fileReference,
+                parentRef: selectedEntry.parentFileReference,
+                baseName: getBaseName(selectedEntry.name).toLowerCase(),
+                isTemp: isTempFile(selectedEntry.name)
+            });
+            
+            return fileInfoCache.get(cacheKey) || [];
+        }
+        
+        function renderDetailVisibleRows() {
+            const startTime = performance.now();
+            
+            // Only keep cached rows that are in the visible range
+            const keepCache = new Map();
+            const allEntries = getCurrentDetailEntries();
+            for (let i = Math.max(0, detailVisibleStart - RENDER_BUFFER * 2); i < Math.min(allEntries.length, detailVisibleEnd + RENDER_BUFFER * 2); i++) {
+                const cacheKey = i.toString();
+                if (detailCachedVisibleRows.has(cacheKey)) {
+                    keepCache.set(cacheKey, detailCachedVisibleRows.get(cacheKey));
+                }
+            }
+            detailCachedVisibleRows.clear();
+            detailCachedVisibleRows = keepCache;
+            
+            // Create fragment for efficient DOM manipulation
+            const fragment = document.createDocumentFragment();
+            
+            // Pre-calculate entries slice for better performance
+            const visibleEntries = allEntries.slice(detailVisibleStart, detailVisibleEnd);
+            
+            for (let i = 0; i < visibleEntries.length; i++) {
+                const actualIndex = detailVisibleStart + i;
+                const cacheKey = actualIndex.toString();
+                
+                if (!detailCachedVisibleRows.has(cacheKey)) {
+                    const entry = visibleEntries[i];
+                    if (entry) {
+                        const row = createDetailGridRow(entry, actualIndex);
+                        detailCachedVisibleRows.set(cacheKey, row);
+                    }
+                }
+                
+                const row = detailCachedVisibleRows.get(cacheKey);
+                if (row) {
+                    fragment.appendChild(row);
+                }
+            }
+            
+            // Optimized DOM update
+            const totalHeight = allEntries.length * ROW_HEIGHT;
+            const offsetY = detailVisibleStart * ROW_HEIGHT;
+            
+            const buffer = detailGridContainer.querySelector('.detail-virtual-scroll-buffer');
+            if (buffer) {
+                buffer.innerHTML = '';
+                buffer.style.height = totalHeight + 'px';
+                buffer.style.position = 'relative';
+                buffer.style.transform = `translateY(${offsetY}px)`;
+                buffer.appendChild(fragment);
+            }
+            
+            const renderTime = performance.now() - startTime;
+            if (renderTime > 16) { // Log slow renders for debugging
+                console.log(`Detail virtual scroll render took ${renderTime.toFixed(2)}ms for ${visibleEntries.length} rows`);
+            }
+        }
+        
+        function createDetailGridRow(entry, index) {
+            const row = document.createElement('div');
+            row.className = 'grid-row';
+            row.dataset.entryIndex = index;
+            row.dataset.entry = JSON.stringify(entry);
+            
+            // Check if this is part of a rename group
+            const isRenameOld = entry.renameType === 'old';
+            const isRenameNew = entry.renameType === 'new';
+            
+            if (isRenameOld || isRenameNew) {
+                // Handle rename groups - we'll group them in rendering
+                return createDetailRenameRow(entry, index);
+            } else {
+                // Regular entry
+                const reasonClass = getReasonClass(entry.reason);
+                const reasonTitle = formatReason(entry.reason);
+                const displayName = entry.name;
+                
+                // Truncate long paths for display but keep full path in title
+                const fullPath = entry.path || '';
+                const displayPath = fullPath.length > 60 ? fullPath.substring(0, 60) + '...' : fullPath;
+                
+                row.innerHTML = `
+                    <div class="usn-number" title="${entry.usn}">${entry.usn}</div>
+                    <div class="filename" title="${entry.name}">${displayName}</div>
+                    <div class="${reasonClass}" title="${entry.reason}">${reasonTitle}</div>
+                    <div class="filepath" title="${fullPath}">${displayPath}</div>
+                    <div class="timestamp" title="${entry.timestamp}">${formatDate(entry.timestamp)}</div>
+                `;
+            }
+            
+            // Add context menu event listener
+            row.addEventListener('contextmenu', (e) => {
+                e.preventDefault();
+                showDetailContextMenu(e, entry);
+            });
+            
+            return row;
+        }
+        
+        function createDetailRenameRow(entry, index) {
+            const row = document.createElement('div');
+            row.className = 'grid-row rename-group';
+            row.dataset.entryIndex = index;
+            row.dataset.entry = JSON.stringify(entry);
+            
+            // Check if this might be a download file being renamed
+            const isDownloadRename = isTempFile(entry.name);
+            const renameIcon = isDownloadRename ? '📥' : '📝';
+            const renameType = isDownloadRename ? 'Download Rename' : 'Rename';
+            
+            // Truncate long paths for display but keep full path in title
+            const fullPath = entry.path || '';
+            const displayPath = fullPath.length > 60 ? fullPath.substring(0, 60) + '...' : fullPath;
+            
+            const tooltip = `File ${renameType}: ${entry.name}`;
+            
+            row.innerHTML = `
+                <div class="usn-number" title="${entry.usn}">${entry.usn}</div>
+                <div class="filename" title="${tooltip}">${entry.name}</div>
+                <div class="filename" title="${tooltip}">${renameIcon} ${renameType}</div>
+                <div class="filepath" title="${fullPath}">${displayPath}</div>
+                <div class="timestamp" title="${entry.timestamp}">${formatDate(entry.timestamp)}</div>
+            `;
+            
+            // Add context menu event listener
+            row.addEventListener('contextmenu', (e) => {
+                e.preventDefault();
+                showDetailContextMenu(e, entry);
+            });
+            
+            return row;
+        }
+        
+        // Detail modal context menu functions
+        let detailContextMenu = null;
+        let selectedDetailEntry = null;
+        
+        function showDetailContextMenu(e, entry) {
+            selectedDetailEntry = entry;
+            detailContextMenu = document.getElementById('detailContextMenu');
+            detailContextMenu.style.display = 'block';
+            detailContextMenu.style.left = e.pageX + 'px';
+            detailContextMenu.style.top = e.pageY + 'px';
+            
+            document.addEventListener('click', hideDetailContextMenu);
+        }
+        
+        function hideDetailContextMenu() {
+            if (detailContextMenu) {
+                detailContextMenu.style.display = 'none';
+            }
+            document.removeEventListener('click', hideDetailContextMenu);
+        }
+        
+        function copyDetailUSN() {
+            if (selectedDetailEntry) {
+                copyToClipboard(selectedDetailEntry.usn);
+            }
+            hideDetailContextMenu();
+        }
+        
+        function copyDetailPath() {
+            if (selectedDetailEntry) {
+                const fullPath = selectedDetailEntry.path;
+                copyToClipboard(fullPath);
+            }
+            hideDetailContextMenu();
+        }
+        
+        function optimizeMemoryUsage() {
+            const startTime = performance.now();
+            
+            // More aggressive cache management
+            if (cachedFilteredResults.size > 20) {
+                // Keep only the most recent 20 cache entries
+                const entries = Array.from(cachedFilteredResults.entries());
+                for (let i = 0; i < entries.length - 20; i++) {
+                    cachedFilteredResults.delete(entries[i][0]);
+                }
+            }
+            
+            // Clear visible rows cache more efficiently
+            if (cachedVisibleRows.size > 100) {
+                // Keep only visible range cache
+                const visibleKeys = [];
+                for (let i = Math.max(0, visibleStart - 20); i < Math.min(filteredEntries.length, visibleEnd + 20); i++) {
+                    const key = i.toString();
+                    if (cachedVisibleRows.has(key)) {
+                        visibleKeys.push(key);
+                    }
+                }
+                
+                cachedVisibleRows.clear();
+                visibleKeys.forEach(key => {
+                    // Note: This would need to be reconstructed on next render
+                });
+            }
+            
+            const optimizationTime = performance.now() - startTime;
+            if (optimizationTime > 10) {
+                console.log(`Memory optimization took ${optimizationTime.toFixed(2)}ms`);
+            }
+        }
+        
+        // Auto-optimize memory frequently for better performance
+        setInterval(() => {
+            if (allEntries.length > 100) {
+                optimizeMemoryUsage();
+            }
+        }, 5000); // Every 5 seconds for better responsiveness
+    </script>
+</body>
+</html>
