@@ -42,13 +42,13 @@ A modern Windows USN Journal analyzer that tracks file system activity including
 ## 📦 Installation
 
 ### Option 1: Using Pre-built Executable (Recommended)
-1. Download the latest `JournalTrace.exe` from [Releases](https://github.com/yourusername/JournalTrace/releases)
+1. Download the latest `JournalTrace.exe` from [Releases](https://github.com/ritzysixx/JournalTrace/releases)
 2. Run `JournalTrace.exe` directly - no installation required!
 
 ### Option 2: Build from Source
 1. **Clone the repository**
    ```bash
-   git clone https://github.com/yourusername/JournalTrace.git
+   git clone https://github.com/ritzysixx/JournalTrace.git
    cd JournalTrace
    ```
 
@@ -131,7 +131,7 @@ The v1.0.0 interface features:
 
 ## 🐛 Reporting Issues
 
-Found a bug or have a feature request? Please [open an issue](https://github.com/yourusername/JournalTrace/issues) with:
+Found a bug or have a feature request? Please [open an issue](https://github.com/ritzysixx/JournalTrace/issues) with:
 - Detailed description of the problem
 - Steps to reproduce
 - Screenshots (if applicable)
