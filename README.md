@@ -131,7 +131,7 @@ The v1.0.0 interface features:
 
 ## 🐛 Reporting Issues
 
-Found a bug or have a feature request? Please [open an issue](https://github.com/ritzysixx/JournalTrace/issues) with:
+Found a bug or have a feature request? Please [open an issue](https://github.com/ritzysixx/Journal-Trace/issues) with:
 - Detailed description of the problem
 - Steps to reproduce
 - Screenshots (if applicable)
